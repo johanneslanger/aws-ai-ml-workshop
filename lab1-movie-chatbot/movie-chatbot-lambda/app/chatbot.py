@@ -10,18 +10,22 @@ import os
 import csv 
 import json
 
-""" --- Static initialization, download the movies file --- """
+""" --- Static initialization--- """
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 campaign_arn = os.environ['CAMPAIGN_ARN'] # the arn of the campaign to call in Amazon Personalize
 assets_bucket = os.environ['ASSETS_BUCKET'] # the bucket which contains static assets
-movie_data_object = os.environ['MOVIE_DATA_OBJECT'] # the file which has the list of movie titles and IDs
+if os.environ.get('MOVIE_DATA_OBJECT') is None:
+    movie_data_object = 'movies.csv' # the object in the s3 bucket which has the list of movie titles and IDs
+else:
+    movie_data_object = os.environ['MOVIE_DATA_OBJECT']
 movies_file_local = '/tmp/movies.csv' # where to cache the file locally
 
 logger.debug(
     'Initializing lambda with campaign: {}, bucket: {}, movie_data:{}, file: {}'.format(campaign_arn,assets_bucket, movie_data_object, movies_file_local))
 
+""" --- download the movies file --- """
 # First we need to download a list of possible movies so we can match them to an item id which can be used to call Amazon Personalize
 s3 = boto3.client('s3')
 logger.debug(
@@ -33,9 +37,7 @@ movies = csv.DictReader(open("/tmp/movies.csv"))
 for row in movies:
     moviesDict.update({row['ITEM_ID'] : {'id': row['ITEM_ID'], 'title': row['title'], 'genre': row['genre']}})
 
-""" --- Helpers to build responses which match the structure of the necessary dialog actions --- """
-
-
+""" --- Helpers functions --- """
 def get_slots(intent_request):
     return intent_request['currentIntent']['slots']
 
