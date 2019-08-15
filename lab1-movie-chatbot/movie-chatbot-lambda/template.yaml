@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'Chatbot to get movie recommendations from an endpoint in Amazon Personalize'
+Parameters:
+    CampaignArn:
+        Description: The arn of the Amazon Personalize Campaign to call for recommendations
+        Type: String
+        Default: arn:aws:personalize:us-east-1:028626156119:campaign/DEMO-sims-campaign-42079
+    AssetsBucket:
+        Description: the bucket name where the movie title to id mapping is stored
+        Type: String
+        Default: movie-chatbot-resources-028626156119
+    MovieDataObject:
+        Description: The object in the S3 bucket which stores movie title to ID mappings
+        Type: String
+        Default: movies.csv
+    MoviesFile:
+        Description: Where to cache mappings locally
+        Type: String
+        Default: /tmp/movies.csv
+Resources:
+  movieChatbotFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: chatbot.lambda_handler
+      Runtime: python3.7
+      CodeUri: app/
+      Description: >-
+        Get movie recommendations from an endpoint in Amazon Personalize
+      MemorySize: 128
+      Timeout: 10
+      Policies:
+      - Statement:
+        - Sid: PersonalizeReadPolicy
+          Effect: Allow
+          Action:
+          - personalize:GetRecommendations
+          Resource: '*'
+        - Sid: S3ReadPolicy
+          Effect: Allow
+          Action:
+          - s3:Get*
+          Resource: '*'
+      Environment:
+        Variables:
+          CAMPAIGN_ARN: !Ref CampaignArn
+          ASSETS_BUCKET: !Ref AssetsBucket
+          MOVIE_DATA_OBJECT: !Ref MovieDataObject
+          MOVIES_FILE: !Ref MoviesFile
+  lexPermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref movieChatbotFunction
+      Principal: 'lex.amazonaws.com'
