@@ -94,7 +94,7 @@ def get_fulfilled_message(rec_Items):
     responseMessage = 'Thanks, Here is a list of movies I would recommend:'
     for movie in rec_Items:
         responseMessage = responseMessage + \
-            ',\n' + movie['title'] + "(" + movie['genre'] + ')'
+            ',\n' + movie['title'] 
     return responseMessage + '.\n Enjoy!'
 
 
