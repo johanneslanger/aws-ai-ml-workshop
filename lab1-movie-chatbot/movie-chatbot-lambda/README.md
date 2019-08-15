@@ -1,6 +1,6 @@
 # movie-chatbot
 
-This is a sam application which deploys a lambda function used as part of lab 1 in the AWS AI/ML workshop. Check out the workshop for detailed instructions: https://d26gkfl4iita17.cloudfront.net/
+This is a sam application which deploys a lambda function used as part of lab 1 in the AWS AI/ML workshop. Check out the workshop for detailed instructions: https://dsuth0hrql5gm.cloudfront.net/
 
 ## Requirements
 

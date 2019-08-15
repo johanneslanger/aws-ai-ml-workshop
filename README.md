@@ -1,6 +1,6 @@
 # AWS AI/ML workshop
 
-This repo contains supporting materials for the AWS AI/ML workshop found under https://d26gkfl4iita17.cloudfront.net/.
+This repo contains supporting materials for the AWS AI/ML workshop found under https://dsuth0hrql5gm.cloudfront.net/.
 
 Checkout the workshop for more information.
 
