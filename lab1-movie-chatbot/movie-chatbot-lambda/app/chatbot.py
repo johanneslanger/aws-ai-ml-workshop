@@ -14,34 +14,33 @@ import json
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-campaign_arn = os.environ['CAMPAIGN_ARN'] # the arn of the campaign to call in Amazon Personalize
-assets_bucket = os.environ['ASSETS_BUCKET'] # the bucket which contains static assets
-if os.environ.get('MOVIE_DATA_OBJECT') is None:
-    movie_data_object = 'movies.csv' # the object in the s3 bucket which has the list of movie titles and IDs
-else:
-    movie_data_object = os.environ['MOVIE_DATA_OBJECT']
-movies_file_local = '/tmp/movies.csv' # where to cache the file locally
-
-logger.debug(
+if os.environ['CAMPAIGN_ARN']: # we only care about these items when integrating with Personalize
+    logger.debug('We will be integrating with Amazon Personalize now')
+    campaign_arn = os.environ['CAMPAIGN_ARN'] # the arn of the campaign to call in Amazon Personalize
+    logger.debug('campaign_arn is '.format(campaign_arn))
+    assets_bucket = os.environ['ASSETS_BUCKET'] # the bucket which contains static assets
+    if os.environ.get('MOVIE_DATA_OBJECT') is None:
+        movie_data_object = 'movies.csv' # the object in the s3 bucket which has the list of movie titles and IDs
+    else:
+        movie_data_object = os.environ['MOVIE_DATA_OBJECT']
+    movies_file_local = '/tmp/movies.csv' # where to cache the file locally
+    logger.debug(
     'Initializing lambda with campaign: {}, bucket: {}, movie_data:{}, file: {}'.format(campaign_arn,assets_bucket, movie_data_object, movies_file_local))
-
-""" --- download the movies file --- """
-# First we need to download a list of possible movies so we can match them to an item id which can be used to call Amazon Personalize
-s3 = boto3.client('s3')
-logger.debug(
+    """ --- download the movies file --- """
+    # First we need to download a list of possible movies so we can match them to an item id which can be used to call Amazon Personalize
+    s3 = boto3.client('s3')
+    logger.debug(
     'Downloading movies list from url=s3://{}/{}'.format(assets_bucket, movie_data_object))
-s3.download_file(assets_bucket, movie_data_object, movies_file_local)
-# Read in CSV file and create simple lookup dictionary, we could use pandas, however this pulls in a huge dependency and we want to keep it simple for this demo
-moviesDict = {}
-movies = csv.DictReader(open("/tmp/movies.csv"))
-for row in movies:
-    moviesDict.update({row['ITEM_ID'] : {'id': row['ITEM_ID'], 'title': row['title'], 'genre': row['genre']}})
+    s3.download_file(assets_bucket, movie_data_object, movies_file_local)
+    # Read in CSV file and create simple lookup dictionary, we could use pandas, however this pulls in a huge dependency and we want to keep it simple for this demo
+    moviesDict = {}
+    movies = csv.DictReader(open("/tmp/movies.csv"))
+    for row in movies:
+        moviesDict.update({row['ITEM_ID'] : {'id': row['ITEM_ID'], 'title': row['title'], 'genre': row['genre']}})
 
 """ --- Helpers functions --- """
 def get_slots(intent_request):
     return intent_request['currentIntent']['slots']
-
-
 
 def close(session_attributes, fulfillment_state, message):
     response = {
@@ -72,7 +71,8 @@ def get_recommendations_for_movie(watchedMovie):
     logger.debug('get_recommendations_for_movie={}'.format(watchedMovie))
     client = boto3.client('personalize-runtime')
     rec_Items = []
-
+    
+    ## change this so that we ignore pesonalize endpoint existence if not provided
     movieItem = searchMovieByTitle(moviesDict, watchedMovie)
     logger.debug('Matched to item={}'.format(movieItem))
     rec_response = client.get_recommendations(
@@ -94,7 +94,7 @@ def get_fulfilled_message(rec_Items):
     responseMessage = 'Thanks, Here is a list of movies I would recommend:'
     for movie in rec_Items:
         responseMessage = responseMessage + \
-            ',\n' + movie['title'] 
+        ',\n' + movie['title'] 
     return responseMessage + '.\n Enjoy!'
 
 
@@ -105,14 +105,19 @@ def recommend_movies(intent_request):
     """
 
     watchedMovie = get_slots(intent_request)["watchedMovie"]
-    recommendations = get_recommendations_for_movie(watchedMovie)
-    message = get_fulfilled_message(recommendations)
-
-    return close(intent_request['sessionAttributes'],
-                 'Fulfilled',
-                 {'contentType': 'PlainText',
-                  'content': message})
-
+    if os.environ['CAMPAIGN_ARN']:
+        recommendations = get_recommendations_for_movie(watchedMovie)
+        message = get_fulfilled_message(recommendations)
+        return close(intent_request['sessionAttributes'],
+            'Fulfilled',
+            {'contentType': 'PlainText',
+            'content': message})
+    else:
+        message = 'Right now, I am feeling under the weather and cannot provide a movie suggestion.'
+        return close(intent_request['sessionAttributes'],
+        'Fulfilled',
+        {'contentType': 'PlainText',
+            'content': message})
 
 def dispatch(intent_request):
     """
