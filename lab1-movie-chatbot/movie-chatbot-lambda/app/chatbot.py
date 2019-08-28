@@ -17,8 +17,16 @@ logger.setLevel(logging.DEBUG)
 if os.environ['CAMPAIGN_ARN']: # we only care about these items when integrating with Personalize
     logger.debug('We will be integrating with Amazon Personalize now')
     campaign_arn = os.environ['CAMPAIGN_ARN'] # the arn of the campaign to call in Amazon Personalize
-    logger.debug('campaign_arn is '.format(campaign_arn))
     assets_bucket = os.environ['ASSETS_BUCKET'] # the bucket which contains static assets
+
+    ## Let's make sure that the bucket exists
+    s3 = boto3.client('s3')
+    if s3.head_bucket(Bucket=assets_bucket):
+        logger.debug("The bucket "+ assets_bucket+ " exists, let's move on")
+    elif assets_bucket: ## the variable will be empty at first, so we need to make sure to account for that
+        raise Exception("The bucket " + assets_bucket + " does not exist. Please enter in an S3 bucket in the form of: movie-chatbot-resources-(your account number without hyphens, only digits)")
+    
+    ## Initialize the content
     if os.environ.get('MOVIE_DATA_OBJECT') is None:
         movie_data_object = 'movies.csv' # the object in the s3 bucket which has the list of movie titles and IDs
     else:
@@ -28,7 +36,7 @@ if os.environ['CAMPAIGN_ARN']: # we only care about these items when integrating
     'Initializing lambda with campaign: {}, bucket: {}, movie_data:{}, file: {}'.format(campaign_arn,assets_bucket, movie_data_object, movies_file_local))
     """ --- download the movies file --- """
     # First we need to download a list of possible movies so we can match them to an item id which can be used to call Amazon Personalize
-    s3 = boto3.client('s3')
+  
     logger.debug(
     'Downloading movies list from url=s3://{}/{}'.format(assets_bucket, movie_data_object))
     s3.download_file(assets_bucket, movie_data_object, movies_file_local)
@@ -130,10 +138,10 @@ def dispatch(intent_request):
     intent_name = intent_request['currentIntent']['name']
 
     # Dispatch to your bot's intent handlers
-    if intent_name == 'RecommendMovieIntent':
+    if intent_name == os.environ['INTENT_NAME']:
         return recommend_movies(intent_request)
 
-    raise Exception('Intent with name ' + intent_name + ' not supported')
+    raise Exception('Intent with name ' + intent_name + ' not supported, because it is not equal to the value set for environment variable INTENT_NAME: '+ os.environ['INTENT_NAME'])
 
 
 """ --- Main handler --- """
